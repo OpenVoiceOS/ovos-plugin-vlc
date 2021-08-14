@@ -24,6 +24,8 @@ class OVOSVlcService(AudioBackend):
         self.config = config
         self.bus = bus
         self.name = name
+        self.normal_volume = None
+        self.low_volume = self.config.get('low_volume', 30)
         self._playback_time = 0
         self.player.audio_set_volume(100)
 
@@ -79,6 +81,8 @@ class OVOSVlcService(AudioBackend):
         """ Stop vlc playback. """
         LOG.info('VLCService Stop')
         if self.player.is_playing():
+            # Restore volume if lowered
+            self.restore_volume()
             self.clear_list()
             self.list_player.stop()
             return True
@@ -100,6 +104,24 @@ class OVOSVlcService(AudioBackend):
     def previous(self):
         """ Skip to previous track in playlist. """
         self.list_player.previous()
+
+    def lower_volume(self):
+        """ Lower volume (will be called when mycroft is listening
+        or speaking.
+        """
+        # Lower volume if playing, volume isn't already lowered
+        # and ducking is enabled
+        if (self.normal_volume is None and self.player.is_playing() and
+                self.config.get('duck', False)):
+            self.normal_volume = self.player.audio_get_volume()
+            self.player.audio_set_volume(self.low_volume)
+
+    def restore_volume(self):
+        """ Restore volume to previous level. """
+        # if vlc has been lowered restore the volume
+        if self.normal_volume:
+            self.player.audio_set_volume(self.normal_volume)
+            self.normal_volume = None
 
     def track_info(self):
         """ Extract info of current track. """
