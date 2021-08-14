@@ -33,6 +33,11 @@ class OVOSVlcService(AudioBackend):
 
     def update_playback_time(self, data, other):
         self._playback_time = data.u.new_time
+        # this message is captured by ovos common play and used to sync the
+        # seekbar
+        self.bus.emit(Message("ovos.common_play.playback_time",
+                              {"position": self._playback_time,
+                               "length": self.get_track_length()}))
 
     def track_start(self, data, other):
         if self._track_start_callback:
