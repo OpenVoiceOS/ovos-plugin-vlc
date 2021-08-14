@@ -1,5 +1,6 @@
 from ovos_plugin_manager.templates.audio import AudioBackend
 from ovos_utils.log import LOG
+from mycroft_bus_client.message import Message
 import vlc
 
 
