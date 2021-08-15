@@ -2,6 +2,7 @@ from ovos_plugin_manager.templates.audio import AudioBackend
 from ovos_utils.log import LOG
 from mycroft_bus_client.message import Message
 import vlc
+import time
 
 
 class OVOSVlcService(AudioBackend):
@@ -28,6 +29,7 @@ class OVOSVlcService(AudioBackend):
         self.low_volume = self.config.get('low_volume', 30)
         self._playback_time = 0
         self.player.audio_set_volume(100)
+        self._last_sync = 0
 
     @property
     def playback_time(self):
@@ -38,16 +40,20 @@ class OVOSVlcService(AudioBackend):
         self._playback_time = data.u.new_time
         # this message is captured by ovos common play and used to sync the
         # seekbar
-        self.bus.emit(Message("ovos.common_play.playback_time",
-                              {"position": self._playback_time,
-                               "length": self.get_track_length()}))
+        if time.time() - self._last_sync > 0.5:
+            # send event ~ every 500 ms
+            self._last_sync = time.time()
+            self.bus.emit(Message("ovos.common_play.playback_time",
+                                  {"position": self._playback_time,
+                                   "length": self.get_track_length()}))
 
     def track_start(self, data, other):
+        LOG.debug('VLC playback start')
         if self._track_start_callback:
             self._track_start_callback(self.track_info()['name'])
 
     def queue_ended(self, data, other):
-        LOG.debug('Queue ended')
+        LOG.debug('VLC playback ended')
         if self._track_start_callback:
             self._track_start_callback(None)
 
@@ -59,22 +65,40 @@ class OVOSVlcService(AudioBackend):
         self.track_list = self.instance.media_list_new()
         # Set list as current track list
         self.list_player.set_media_list(self.track_list)
+        # TODO playlist is handled in ovos common play, new event
+        # playlist is handled in ovos common play
+        # new event needed TODO
+        self.bus.emit(Message("ovos.common_play.playlist.clear"))
 
     def add_list(self, tracks):
-        LOG.debug("Track list is " + str(tracks))
-        for t in tracks:
+        if len(tracks) >= 1:
+            t = tracks[0]
             if isinstance(t, list):
                 t = t[0]
             self.track_list.add_media(self.instance.media_new(t))
+            if len(tracks) > 1:
+                # should never happen, means something is bypassing ovos
+                # common play with bus messages
+                tracks = tracks[1:]
+                LOG.debug("discarded extra tracks, refused to handle "
+                          "playlists in VLC, use ovos common play instead!")
+                return
+                # playlist is handled in ovos common play
+                # new event needed TODO
+                self.bus.emit(Message("ovos.common_play.playlist.queue",
+                                      {"tracks": tracks}))
 
     def play(self, repeat=False):
         """ Play playlist using vlc. """
         LOG.debug('VLCService Play')
-        if repeat:
-            self.list_player.set_playback_mode(vlc.PlaybackMode.loop)
-        else:
-            self.list_player.set_playback_mode(vlc.PlaybackMode.default)
-
+        # playlist is handled in ovos common play
+        # new event needed for repeat flag TODO
+        if repeat: # remove log once listener is implemented in common play
+            LOG.debug("ignoring repeat flag, refused to handle "
+                      "playlists in VLC, use ovos common play instead!")
+        self.bus.emit(Message("ovos.common_play.playlist.set_repeat",
+                              {"repeat": repeat}))
+        self.list_player.set_playback_mode(vlc.PlaybackMode.default)
         self.list_player.play()
 
     def stop(self):
@@ -99,11 +123,15 @@ class OVOSVlcService(AudioBackend):
 
     def next(self):
         """ Skip to next track in playlist. """
-        self.list_player.next()
+        # playlist handling done by ovos common play
+        self.bus.emit(Message("ovos.common_play.next"))
+        # self.list_player.next()
 
     def previous(self):
         """ Skip to previous track in playlist. """
-        self.list_player.previous()
+        # playlist handling done by ovos common play
+        self.bus.emit(Message("ovos.common_play.previous"))
+        # self.list_player.previous()
 
     def lower_volume(self):
         """ Lower volume (will be called when mycroft is listening
