@@ -54,6 +54,8 @@ class OVOSVlcService(AudioBackend):
 
     def queue_ended(self, data, other):
         LOG.debug('VLC playback ended')
+        # remove track so it isnt triggered by resume command in GUI
+        self.clear_list()
         if self._track_start_callback:
             self._track_start_callback(None)
 
