@@ -54,7 +54,6 @@ class OVOSVlcService(AudioBackend):
 
     def queue_ended(self, data, other):
         LOG.debug('VLC playback ended')
-        # remove track so it isnt triggered by resume command in GUI
         self.clear_list()
         if self._track_start_callback:
             self._track_start_callback(None)
@@ -73,10 +72,12 @@ class OVOSVlcService(AudioBackend):
         self.bus.emit(Message("ovos.common_play.playlist.clear"))
 
     def add_list(self, tracks):
+        self.clear_list() # remove any previous track
         if len(tracks) >= 1:
             t = tracks[0]
             if isinstance(t, list):
                 t = t[0]
+            LOG.debug(f"queing for playback: {t}")
             self.track_list.add_media(self.instance.media_new(t))
             if len(tracks) > 1:
                 # should never happen, means something is bypassing ovos
@@ -109,7 +110,7 @@ class OVOSVlcService(AudioBackend):
         if self.player.is_playing():
             # Restore volume if lowered
             self.restore_volume()
-            self.clear_list()
+            #self.clear_list()
             self.list_player.stop()
             return True
         else:
