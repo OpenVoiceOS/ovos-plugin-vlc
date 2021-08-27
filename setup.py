@@ -6,7 +6,7 @@ PLUGIN_ENTRY_POINT = 'ovos_vlc=ovos_plugin_vlc'
 
 setup(
     name='ovos_plugin_vlc',
-    version='0.0.1a2',
+    version='0.0.1a3',
     description='vlc plugin for ovos',
     url='https://github.com/OpenVoiceOS/ovos-vlc-plugin',
     author='JarbasAi',
