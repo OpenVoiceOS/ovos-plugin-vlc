@@ -1,6 +1,8 @@
 from ovos_plugin_manager.templates.audio import AudioBackend
 from ovos_utils.log import LOG
 from mycroft_bus_client.message import Message
+from ovos_workshop.frameworks.playback.status import TrackState, \
+    MediaState, PlayerState
 import vlc
 import time
 
@@ -39,8 +41,10 @@ class OVOSVlcService(AudioBackend):
         self._playback_time = data.u.new_time
         # this message is captured by ovos common play and used to sync the
         # seekbar
-        if time.time() - self._last_sync > 0.5:
-            # send event ~ every 500 ms
+        if time.time() - self._last_sync > 2:
+            # send event ~ every 2 s
+            # the gui seems to lag a lot when sending messages too often,
+            # gui expected to keep an internal fake progress bar and sync periodically
             self._last_sync = time.time()
             self.bus.emit(Message("ovos.common_play.playback_time",
                                   {"position": self._playback_time,
@@ -50,6 +54,12 @@ class OVOSVlcService(AudioBackend):
         LOG.debug('VLC playback start')
         if self._track_start_callback:
             self._track_start_callback(self.track_info()['name'])
+        self.bus.emit(Message("ovos.common_play.player.state",
+                                 {"state": PlayerState.PLAYING}))
+        self.bus.emit(Message("ovos.common_play.media.state",
+                              {"state": MediaState.BUFFERING_MEDIA}))
+        self.bus.emit(Message("ovos.common_play.track.state",
+                              {"state": TrackState.PLAYING_AUDIOSERVICE}))
 
     def queue_ended(self, data, other):
         LOG.debug('VLC playback ended')
@@ -57,13 +67,15 @@ class OVOSVlcService(AudioBackend):
         if self._track_start_callback:
             self._track_start_callback(None)
 
+        self.bus.emit(Message("ovos.common_play.player.state",
+                              {"state": PlayerState.STOPPED}))
+        self.bus.emit(Message("ovos.common_play.media.state",
+                              {"state": MediaState.END_OF_MEDIA}))
+
     def supported_uris(self):
         return ['file', 'http', 'https']
 
     def clear_list(self):
-        # TODO playlist is handled in ovos common play, new event
-        # playlist is handled in ovos common play
-        # new event needed TODO
         self.bus.emit(Message("ovos.common_play.playlist.clear"))
 
     def add_list(self, tracks):
@@ -71,8 +83,10 @@ class OVOSVlcService(AudioBackend):
             t = tracks[0]
             if isinstance(t, list):
                 t = t[0]
-            LOG.debug(f"queing for playback: {t}")
+            LOG.debug(f"queuing for playback: {t}")
             self._now_playing = t
+            self.bus.emit(Message("ovos.common_play.track.state",
+                                  {"state": TrackState.QUEUED_AUDIOSERVICE}))
             if len(tracks) > 1:
                 # should never happen, means something is bypassing ovos
                 # common play with bus messages
@@ -90,62 +104,64 @@ class OVOSVlcService(AudioBackend):
                       "playlists in VLC, use ovos common play instead!")
         track = self.instance.media_new(self._now_playing)
         self.player.set_media(track)
+        self.bus.emit(Message("ovos.common_play.media.state",
+                              {"state": MediaState.LOADED_MEDIA}))
         self.player.play()
 
     def stop(self):
         """ Stop vlc playback. """
         LOG.info('VLCService Stop')
         if self.player.is_playing():
+            self.bus.emit(Message("ovos.common_play.player.state",
+                                  {"state": PlayerState.STOPPED}))
             # Restore volume if lowered
             self.restore_volume()
-            #self.clear_list()
             self.player.stop()
+            self.clear_list()
             return True
         return False
 
     def pause(self):
         """ Pause vlc playback. """
         self.player.set_pause(1)
+        self.bus.emit(Message("ovos.common_play.player.state",
+                              {"state": PlayerState.PAUSED}))
 
     def resume(self):
         """ Resume paused playback. """
         self.player.set_pause(0)
+        self.bus.emit(Message("ovos.common_play.player.state",
+                              {"state": PlayerState.PLAYING}))
+        self.bus.emit(Message("ovos.common_play.track.state",
+                              {"state": TrackState.PLAYING_AUDIOSERVICE}))
 
     def next(self):
         """ Skip to next track in playlist. """
         # playlist handling done by ovos common play
+        self.pause()
         self.bus.emit(Message("ovos.common_play.next"))
 
     def previous(self):
         """ Skip to previous track in playlist. """
         # playlist handling done by ovos common play
+        self.pause()
         self.bus.emit(Message("ovos.common_play.previous"))
 
     def lower_volume(self):
-        """ Lower volume (will be called when mycroft is listening
-        or speaking.
-        """
-        # Lower volume if playing, volume isn't already lowered
-        # and ducking is enabled
-        if (self.normal_volume is None and self.player.is_playing() and
-                self.config.get('duck', False)):
-            self.normal_volume = self.player.audio_get_volume()
-            self.player.audio_set_volume(self.low_volume)
+        if self.config.get("duck", False):
+            self.bus.emit(Message("ovos.common_play.duck"))
 
     def restore_volume(self):
-        """ Restore volume to previous level. """
-        # if vlc has been lowered restore the volume
-        if self.normal_volume:
-            self.player.audio_set_volume(self.normal_volume)
-            self.normal_volume = None
+        if self.config.get("duck", False):
+            self.bus.emit(Message("ovos.common_play.unduck"))
 
     def track_info(self):
         """ Extract info of current track. """
         ret = {}
         t = self.player.get_media()
         ret['album'] = t.get_meta(vlc.Meta.Album)
-        ret['artists'] = [t.get_meta(vlc.Meta.Artist)]
-        ret['name'] = t.get_meta(vlc.Meta.Title)
+        ret['artist'] = t.get_meta(vlc.Meta.Artist)
+        ret['title'] = t.get_meta(vlc.Meta.Title)
         return ret
 
     def get_track_length(self):
