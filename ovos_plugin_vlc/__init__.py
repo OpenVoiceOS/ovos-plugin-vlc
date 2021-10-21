@@ -53,7 +53,7 @@ class OVOSVlcService(AudioBackend):
     def track_start(self, data, other):
         LOG.debug('VLC playback start')
         if self._track_start_callback:
-            self._track_start_callback(self.track_info()['name'])
+            self._track_start_callback(self.track_info().get('name'))
         self.bus.emit(Message("ovos.common_play.player.state",
                                  {"state": PlayerState.PLAYING}))
         self.bus.emit(Message("ovos.common_play.media.state",
