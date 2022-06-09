@@ -216,7 +216,7 @@ class OVOSVlcService(AudioBackend):
 def load_service(base_config, bus):
     backends = base_config.get('backends', [])
     services = [(b, backends[b]) for b in backends
-                if backends[b]['type'] == 'ovos_vlc' and
+                if backends[b]['type'] in ["vlc", 'ovos_vlc'] and
                 backends[b].get('active', False)]
     instances = [OVOSVlcService(s[1], bus, s[0]) for s in services]
     return instances
