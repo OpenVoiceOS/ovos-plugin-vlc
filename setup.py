@@ -49,6 +49,7 @@ def required(requirements_file):
                 if pkg.strip() and not pkg.startswith("#")]
 
 PLUGIN_ENTRY_POINT = 'ovos_vlc=ovos_plugin_vlc'
+PLUGIN_CONFIG_ENTRY_POINT = 'ovos_vlc.config=ovos_plugin_vlc:VLCAudioPluginConfig'
 
 setup(
     name='ovos_plugin_vlc',
@@ -62,5 +63,6 @@ setup(
     install_requires=required("requirements/requirements.txt"),
     package_data={'': package_files('ovos_plugin_vlc')},
     keywords='ovos audio plugin',
-    entry_points={'mycroft.plugin.audioservice': PLUGIN_ENTRY_POINT}
+    entry_points={'mycroft.plugin.audioservice': PLUGIN_ENTRY_POINT,
+                  'mycroft.plugin.audioservice.config': PLUGIN_CONFIG_ENTRY_POINT}
 )
