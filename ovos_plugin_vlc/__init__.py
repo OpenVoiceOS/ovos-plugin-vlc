@@ -7,6 +7,14 @@ import vlc
 import time
 
 
+VLCAudioPluginConfig = {
+    "vlc": {
+        "type": "ovos_vlc",
+        "active": True
+    }
+}
+
+
 class OVOSVlcService(AudioBackend):
     def __init__(self, config, bus=None, name='ovos_vlc'):
         super(OVOSVlcService, self).__init__(config, bus)
