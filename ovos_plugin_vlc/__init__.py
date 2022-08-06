@@ -27,6 +27,9 @@ class OVOSVlcService(OCPAudioPlayerBackend):
                                      self.update_playback_time, None)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerEndReached,
                                           self.queue_ended, 0)
+        self.vlc_events.event_attach(vlc.EventType.MediaPlayerEncounteredError,
+                                     self.handle_vlc_error, None)
+
         self.config = config
         self.bus = bus
         self.name = name
@@ -41,6 +44,9 @@ class OVOSVlcService(OCPAudioPlayerBackend):
     def playback_time(self):
         """ in milliseconds """
         return self._playback_time
+
+    def handle_vlc_error(self, data, other):
+        self.ocp_error()
 
     def update_playback_time(self, data, other):
         self._playback_time = data.u.new_time
@@ -58,7 +64,7 @@ class OVOSVlcService(OCPAudioPlayerBackend):
     def track_start(self, data, other):
         LOG.debug('VLC playback start')
         if self._track_start_callback:
-            self._track_start_callback(self.track_info().get('name'))
+            self._track_start_callback(self.track_info().get('name', "track"))
 
     def queue_ended(self, data, other):
         LOG.debug('VLC playback ended')
