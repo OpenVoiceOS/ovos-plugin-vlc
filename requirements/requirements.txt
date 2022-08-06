@@ -1,2 +1,3 @@
 ovos-plugin-manager
+ovos_plugin_common_play
 python-vlc>=1.1.2

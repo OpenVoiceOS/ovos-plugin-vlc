@@ -107,9 +107,10 @@ class OVOSVlcService(OCPAudioPlayerBackend):
         """ Extract info of current track. """
         ret = {}
         t = self.player.get_media()
-        ret['album'] = t.get_meta(vlc.Meta.Album)
-        ret['artist'] = t.get_meta(vlc.Meta.Artist)
-        ret['title'] = t.get_meta(vlc.Meta.Title)
+        if t:
+            ret['album'] = t.get_meta(vlc.Meta.Album)
+            ret['artist'] = t.get_meta(vlc.Meta.Artist)
+            ret['title'] = t.get_meta(vlc.Meta.Title)
         return ret
 
     def get_track_length(self):
