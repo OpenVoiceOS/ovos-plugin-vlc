@@ -2,7 +2,19 @@
 
 ## [Unreleased](https://github.com/OpenVoiceOS/ovos-vlc-plugin/tree/HEAD)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-vlc-plugin/compare/V0.0.2a2...HEAD)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-vlc-plugin/compare/V0.0.2a3...HEAD)
+
+**Implemented enhancements:**
+
+- feat/native\_ocp [\#3](https://github.com/OpenVoiceOS/ovos-vlc-plugin/pull/3) ([NeonJarbas](https://github.com/NeonJarbas))
+
+**Closed issues:**
+
+- Doesn't handle youtube// URIs [\#5](https://github.com/OpenVoiceOS/ovos-vlc-plugin/issues/5)
+
+## [V0.0.2a3](https://github.com/OpenVoiceOS/ovos-vlc-plugin/tree/V0.0.2a3) (2023-06-18)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-vlc-plugin/compare/V0.0.2a2...V0.0.2a3)
 
 **Merged pull requests:**
 
