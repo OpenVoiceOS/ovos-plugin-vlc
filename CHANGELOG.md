@@ -2,7 +2,15 @@
 
 ## [Unreleased](https://github.com/OpenVoiceOS/ovos-vlc-plugin/tree/HEAD)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-vlc-plugin/compare/V0.0.2a1...HEAD)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-vlc-plugin/compare/V0.0.2a2...HEAD)
+
+**Merged pull requests:**
+
+- unmycroftify [\#4](https://github.com/OpenVoiceOS/ovos-vlc-plugin/pull/4) ([JarbasAl](https://github.com/JarbasAl))
+
+## [V0.0.2a2](https://github.com/OpenVoiceOS/ovos-vlc-plugin/tree/V0.0.2a2) (2022-08-05)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-vlc-plugin/compare/V0.0.2a1...V0.0.2a2)
 
 **Implemented enhancements:**
 

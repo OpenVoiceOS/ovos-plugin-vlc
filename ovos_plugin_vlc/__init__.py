@@ -1,6 +1,8 @@
 from ovos_utils.log import LOG
-from mycroft_bus_client.message import Message
+from ovos_bus_client.message import Message
 from ovos_plugin_common_play.ocp.base import OCPAudioPlayerBackend
+from ovos_plugin_common_play.ocp.status import TrackState, \
+    MediaState, PlayerState
 import vlc
 import time
 
