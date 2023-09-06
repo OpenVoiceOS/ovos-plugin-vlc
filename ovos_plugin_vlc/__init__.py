@@ -1,6 +1,6 @@
-from ovos_plugin_manager.templates.audio import AudioBackend
 from ovos_utils.log import LOG
 from ovos_bus_client.message import Message
+from ovos_plugin_common_play.ocp.base import OCPAudioPlayerBackend
 from ovos_plugin_common_play.ocp.status import TrackState, \
     MediaState, PlayerState
 import vlc
@@ -15,14 +15,12 @@ VLCAudioPluginConfig = {
 }
 
 
-class OVOSVlcService(AudioBackend):
+class OVOSVlcService(OCPAudioPlayerBackend):
     def __init__(self, config, bus=None, name='ovos_vlc'):
         super(OVOSVlcService, self).__init__(config, bus)
         self.instance = vlc.Instance("--no-video")
 
         self.player = self.instance.media_player_new()
-        self._now_playing = None
-
         self.vlc_events = self.player.event_manager()
 
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerPlaying,
@@ -31,6 +29,9 @@ class OVOSVlcService(AudioBackend):
                                      self.update_playback_time, None)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerEndReached,
                                           self.queue_ended, 0)
+        self.vlc_events.event_attach(vlc.EventType.MediaPlayerEncounteredError,
+                                     self.handle_vlc_error, None)
+
         self.config = config
         self.bus = bus
         self.name = name
@@ -40,10 +41,14 @@ class OVOSVlcService(AudioBackend):
         self.player.audio_set_volume(100)
         self._last_sync = 0
 
+    # vlc internals
     @property
     def playback_time(self):
         """ in milliseconds """
         return self._playback_time
+
+    def handle_vlc_error(self, data, other):
+        self.ocp_error()
 
     def update_playback_time(self, data, other):
         self._playback_time = data.u.new_time
@@ -61,13 +66,7 @@ class OVOSVlcService(AudioBackend):
     def track_start(self, data, other):
         LOG.debug('VLC playback start')
         if self._track_start_callback:
-            self._track_start_callback(self.track_info().get('name'))
-        self.bus.emit(Message("ovos.common_play.player.state",
-                                 {"state": PlayerState.PLAYING}))
-        self.bus.emit(Message("ovos.common_play.media.state",
-                              {"state": MediaState.BUFFERING_MEDIA}))
-        self.bus.emit(Message("ovos.common_play.track.state",
-                              {"state": TrackState.PLAYING_AUDIOSERVICE}))
+            self._track_start_callback(self.track_info().get('name', "track"))
 
     def queue_ended(self, data, other):
         LOG.debug('VLC playback ended')
@@ -75,101 +74,45 @@ class OVOSVlcService(AudioBackend):
         if self._track_start_callback:
             self._track_start_callback(None)
 
-        self.bus.emit(Message("ovos.common_play.player.state",
-                              {"state": PlayerState.STOPPED}))
-        self.bus.emit(Message("ovos.common_play.media.state",
-                              {"state": MediaState.END_OF_MEDIA}))
-
     def supported_uris(self):
         return ['file', 'http', 'https']
 
-    def clear_list(self):
-        self.bus.emit(Message("ovos.common_play.playlist.clear"))
-
-    def add_list(self, tracks):
-        if len(tracks) >= 1:
-            t = tracks[0]
-            if isinstance(t, list):
-                t = t[0]
-            LOG.debug(f"queuing for playback: {t}")
-            self._now_playing = t
-            self.bus.emit(Message("ovos.common_play.track.state",
-                                  {"state": TrackState.QUEUED_AUDIOSERVICE}))
-            if len(tracks) > 1:
-                # should never happen, means something is bypassing ovos
-                # common play with bus messages
-                tracks = tracks[1:]
-                LOG.debug("discarded extra tracks, refused to handle "
-                          "playlists in VLC, use ovos common play instead!")
-
+    # audio service
     def play(self, repeat=False):
         """ Play playlist using vlc. """
         LOG.debug('VLCService Play')
-        # playlist is handled in ovos common play
-        # new event needed for repeat flag TODO
-        if repeat: # remove log once listener is implemented in common play
-            LOG.debug("ignoring repeat flag, refused to handle "
-                      "playlists in VLC, use ovos common play instead!")
+        self.ocp_start()  # emit ocp state events
         track = self.instance.media_new(self._now_playing)
         self.player.set_media(track)
-        self.bus.emit(Message("ovos.common_play.media.state",
-                              {"state": MediaState.LOADED_MEDIA}))
         self.player.play()
 
     def stop(self):
         """ Stop vlc playback. """
         LOG.info('VLCService Stop')
         if self.player.is_playing():
-            self.bus.emit(Message("ovos.common_play.player.state",
-                                  {"state": PlayerState.STOPPED}))
-            # Restore volume if lowered
-            self.restore_volume()
             self.player.stop()
-            self.clear_list()
+            self.ocp_stop()  # emit ocp state events
             return True
         return False
 
     def pause(self):
         """ Pause vlc playback. """
         self.player.set_pause(1)
-        self.bus.emit(Message("ovos.common_play.player.state",
-                              {"state": PlayerState.PAUSED}))
+        self.ocp_pause()  # emit ocp state events
 
     def resume(self):
         """ Resume paused playback. """
         self.player.set_pause(0)
-        self.bus.emit(Message("ovos.common_play.player.state",
-                              {"state": PlayerState.PLAYING}))
-        self.bus.emit(Message("ovos.common_play.track.state",
-                              {"state": TrackState.PLAYING_AUDIOSERVICE}))
-
-    def next(self):
-        """ Skip to next track in playlist. """
-        # playlist handling done by ovos common play
-        self.pause()
-        self.bus.emit(Message("ovos.common_play.next"))
-
-    def previous(self):
-        """ Skip to previous track in playlist. """
-        # playlist handling done by ovos common play
-        self.pause()
-        self.bus.emit(Message("ovos.common_play.previous"))
-
-    def lower_volume(self):
-        if self.config.get("duck", False):
-            self.bus.emit(Message("ovos.common_play.duck"))
-
-    def restore_volume(self):
-        if self.config.get("duck", False):
-            self.bus.emit(Message("ovos.common_play.unduck"))
+        self.ocp_resume()  # emit ocp state events
 
     def track_info(self):
         """ Extract info of current track. """
         ret = {}
         t = self.player.get_media()
-        ret['album'] = t.get_meta(vlc.Meta.Album)
-        ret['artist'] = t.get_meta(vlc.Meta.Artist)
-        ret['title'] = t.get_meta(vlc.Meta.Title)
+        if t:
+            ret['album'] = t.get_meta(vlc.Meta.Album)
+            ret['artist'] = t.get_meta(vlc.Meta.Artist)
+            ret['title'] = t.get_meta(vlc.Meta.Title)
         return ret
 
     def get_track_length(self):
