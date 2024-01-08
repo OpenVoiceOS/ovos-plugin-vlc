@@ -1,24 +1,19 @@
-from ovos_utils.log import LOG
-from ovos_bus_client.message import Message
-from ovos_plugin_common_play.ocp.base import OCPAudioPlayerBackend
-from ovos_plugin_common_play.ocp.status import TrackState, \
-    MediaState, PlayerState
-import vlc
 import time
 
+import vlc
+from ovos_bus_client.message import Message
 
-VLCAudioPluginConfig = {
-    "vlc": {
-        "type": "ovos_vlc",
-        "active": True
-    }
-}
+from ovos_plugin_manager.templates.media import MediaBackend, AudioPlayerBackend, VideoPlayerBackend
+from ovos_utils.log import LOG
 
 
-class OVOSVlcService(OCPAudioPlayerBackend):
-    def __init__(self, config, bus=None, name='ovos_vlc'):
-        super(OVOSVlcService, self).__init__(config, bus)
-        self.instance = vlc.Instance("--no-video")
+class VlcBaseService(MediaBackend):
+    def __init__(self, config, bus=None, video=False):
+        super().__init__(config, bus)
+        if video:
+            self.instance = vlc.Instance("")
+        else:
+            self.instance = vlc.Instance("--no-video")
 
         self.player = self.instance.media_player_new()
         self.vlc_events = self.player.event_manager()
@@ -28,18 +23,18 @@ class OVOSVlcService(OCPAudioPlayerBackend):
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerTimeChanged,
                                      self.update_playback_time, None)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerEndReached,
-                                          self.queue_ended, 0)
+                                     self.queue_ended, 0)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerEncounteredError,
                                      self.handle_vlc_error, None)
 
         self.config = config
         self.bus = bus
-        self.name = name
-        self.normal_volume = None
         self.low_volume = self.config.get('low_volume', 30)
         self._playback_time = 0
         self.player.audio_set_volume(100)
         self._last_sync = 0
+        if video and self.config.get("fullscreen", True):
+            self.player.toggle_fullscreen()
 
     # vlc internals
     @property
@@ -81,8 +76,8 @@ class OVOSVlcService(OCPAudioPlayerBackend):
     def play(self, repeat=False):
         """ Play playlist using vlc. """
         LOG.debug('VLCService Play')
-        self.ocp_start()  # emit ocp state events
         track = self.instance.media_new(self._now_playing)
+        track.get_mrl()
         self.player.set_media(track)
         self.player.play()
 
@@ -91,19 +86,16 @@ class OVOSVlcService(OCPAudioPlayerBackend):
         LOG.info('VLCService Stop')
         if self.player.is_playing():
             self.player.stop()
-            self.ocp_stop()  # emit ocp state events
             return True
         return False
 
     def pause(self):
         """ Pause vlc playback. """
         self.player.set_pause(1)
-        self.ocp_pause()  # emit ocp state events
 
     def resume(self):
         """ Resume paused playback. """
         self.player.set_pause(0)
-        self.ocp_resume()  # emit ocp state events
 
     def track_info(self):
         """ Extract info of current track. """
@@ -163,11 +155,29 @@ class OVOSVlcService(OCPAudioPlayerBackend):
             new_time = 0
         self.player.set_time(new_time)
 
+    def lower_volume(self):
+        """Lower volume.
 
-def load_service(base_config, bus):
-    backends = base_config.get('backends', [])
-    services = [(b, backends[b]) for b in backends
-                if backends[b]['type'] in ["vlc", 'ovos_vlc'] and
-                backends[b].get('active', False)]
-    instances = [OVOSVlcService(s[1], bus, s[0]) for s in services]
-    return instances
+        This method is used to implement audio ducking. It will be called when
+        OpenVoiceOS is listening or speaking to make sure the media playing isn't
+        interfering.
+        """
+        self.player.audio_set_volume(self.low_volume)
+
+    def restore_volume(self):
+        """Restore normal volume.
+
+        Called when to restore the playback volume to previous level after
+        OpenVoiceOS has lowered it using lower_volume().
+        """
+        self.player.audio_set_volume(100)
+
+
+class VLCOCPAudioService(AudioPlayerBackend, VlcBaseService):
+    def __init__(self, config, bus=None):
+        super().__init__(config, bus, video=False)
+
+
+class VLCOCPVideoService(VideoPlayerBackend, VlcBaseService):
+    def __init__(self, config, bus=None):
+        super().__init__(config, bus, video=True)

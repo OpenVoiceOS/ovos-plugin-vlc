@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+
 from setuptools import setup
 
 BASEDIR = os.path.abspath(os.path.dirname(__file__))
@@ -48,21 +49,22 @@ def required(requirements_file):
         return [pkg for pkg in requirements
                 if pkg.strip() and not pkg.startswith("#")]
 
-PLUGIN_ENTRY_POINT = 'ovos_vlc=ovos_plugin_vlc'
-PLUGIN_CONFIG_ENTRY_POINT = 'ovos_vlc.config=ovos_plugin_vlc:VLCAudioPluginConfig'
+
+PLUGIN_ENTRY_POINT = 'ovos-media-audio-plugin-vlc=ovos_plugin_vlc:VLCOCPAudioService'
+VIDEO_ENTRY_POINT = 'ovos-media-video-plugin-vlc=ovos_plugin_vlc:VLCOCPVideoService'
 
 setup(
-    name='ovos_plugin_vlc',
+    name='ovos-media-plugin-vlc',
     version=get_version(),
     description='vlc plugin for ovos',
-    url='https://github.com/OpenVoiceOS/ovos-vlc-plugin',
+    url='https://github.com/OpenVoiceOS/ovos-media-plugin-vlc',
     author='JarbasAi',
     author_email='jarbasai@mailfence.com',
     license='Apache-2.0',
     packages=['ovos_plugin_vlc'],
     install_requires=required("requirements/requirements.txt"),
     package_data={'': package_files('ovos_plugin_vlc')},
-    keywords='ovos audio plugin',
-    entry_points={'mycroft.plugin.audioservice': PLUGIN_ENTRY_POINT,
-                  'mycroft.plugin.audioservice.config': PLUGIN_CONFIG_ENTRY_POINT}
+    keywords='ovos audio video OCP plugin',
+    entry_points={'opm.media.audio': PLUGIN_ENTRY_POINT,
+                  'opm.media.video': VIDEO_ENTRY_POINT}
 )
