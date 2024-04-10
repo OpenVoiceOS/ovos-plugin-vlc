@@ -8,7 +8,7 @@ BASEDIR = os.path.abspath(os.path.dirname(__file__))
 def get_version():
     """ Find the version of the package"""
     version = None
-    version_file = os.path.join(BASEDIR, 'ovos_plugin_vlc', 'version.py')
+    version_file = os.path.join(BASEDIR, 'ovos_media_plugin_vlc', 'version.py')
     major, minor, build, alpha = (None, None, None, None)
     with open(version_file) as f:
         for line in f:
@@ -48,20 +48,20 @@ def required(requirements_file):
         return [pkg for pkg in requirements
                 if pkg.strip() and not pkg.startswith("#")]
 
-PLUGIN_ENTRY_POINT = 'ovos_vlc=ovos_plugin_vlc'
-PLUGIN_CONFIG_ENTRY_POINT = 'ovos_vlc.config=ovos_plugin_vlc:VLCAudioPluginConfig'
+PLUGIN_ENTRY_POINT = 'ovos_vlc=ovos_media_plugin_vlc'
+PLUGIN_CONFIG_ENTRY_POINT = 'ovos_vlc.config=ovos_media_plugin_vlc:VLCAudioPluginConfig'
 
 setup(
-    name='ovos_plugin_vlc',
+    name='ovos_media_plugin_vlc',
     version=get_version(),
     description='vlc plugin for ovos',
     url='https://github.com/OpenVoiceOS/ovos-vlc-plugin',
     author='JarbasAi',
     author_email='jarbasai@mailfence.com',
     license='Apache-2.0',
-    packages=['ovos_plugin_vlc'],
+    packages=['ovos_media_plugin_vlc'],
     install_requires=required("requirements/requirements.txt"),
-    package_data={'': package_files('ovos_plugin_vlc')},
+    package_data={'': package_files('ovos_media_plugin_vlc')},
     keywords='ovos audio plugin',
     entry_points={'mycroft.plugin.audioservice': PLUGIN_ENTRY_POINT,
                   'mycroft.plugin.audioservice.config': PLUGIN_CONFIG_ENTRY_POINT}

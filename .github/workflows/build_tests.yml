@@ -7,7 +7,7 @@ on:
     branches:
       - dev
     paths-ignore:
-      - 'ovos_plugin_vlc/version.py'
+      - 'ovos_media_plugin_vlc/version.py'
       - 'test/**'
       - 'examples/**'
       - '.github/**'
