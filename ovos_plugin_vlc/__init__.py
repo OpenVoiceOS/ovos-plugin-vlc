@@ -23,6 +23,8 @@ class OVOSVlcService(AudioBackend):
                                      self.queue_ended, 0)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerEncounteredError,
                                      self.handle_vlc_error, None)
+        self.vlc_events.event_attach(vlc.EventType.VlmMediaInstanceStatusError,
+                                     self.handle_vlc_error, None)
 
         self.config = config
         self.bus = bus
