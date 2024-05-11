@@ -1,21 +1,13 @@
-from ovos_utils.log import LOG
-from ovos_bus_client.message import Message
-from ovos_plugin_common_play.ocp.base import OCPAudioPlayerBackend
-from ovos_plugin_common_play.ocp.status import TrackState, \
-    MediaState, PlayerState
-import vlc
 import time
+from typing import List
+
+import vlc
+from ovos_bus_client.message import Message
+from ovos_plugin_manager.templates.audio import AudioBackend
+from ovos_utils.log import LOG
 
 
-VLCAudioPluginConfig = {
-    "vlc": {
-        "type": "ovos_vlc",
-        "active": True
-    }
-}
-
-
-class OVOSVlcService(OCPAudioPlayerBackend):
+class OVOSVlcService(AudioBackend):
     def __init__(self, config, bus=None, name='ovos_vlc'):
         super(OVOSVlcService, self).__init__(config, bus)
         self.instance = vlc.Instance("--no-video")
@@ -28,7 +20,7 @@ class OVOSVlcService(OCPAudioPlayerBackend):
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerTimeChanged,
                                      self.update_playback_time, None)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerEndReached,
-                                          self.queue_ended, 0)
+                                     self.queue_ended, 0)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerEncounteredError,
                                      self.handle_vlc_error, None)
 
@@ -41,12 +33,8 @@ class OVOSVlcService(OCPAudioPlayerBackend):
         self.player.audio_set_volume(100)
         self._last_sync = 0
 
+    ###################
     # vlc internals
-    @property
-    def playback_time(self):
-        """ in milliseconds """
-        return self._playback_time
-
     def handle_vlc_error(self, data, other):
         self.ocp_error()
 
@@ -59,9 +47,12 @@ class OVOSVlcService(OCPAudioPlayerBackend):
             # the gui seems to lag a lot when sending messages too often,
             # gui expected to keep an internal fake progress bar and sync periodically
             self._last_sync = time.time()
-            self.bus.emit(Message("ovos.common_play.playback_time",
-                                  {"position": self._playback_time,
-                                   "length": self.get_track_length()}))
+            try:
+                self.ocp_sync_playback(self._playback_time)
+            except:  # too old OPM version
+                self.bus.emit(Message("ovos.common_play.playback_time",
+                                      {"position": self._playback_time,
+                                       "length": self.get_track_length()}))
 
     def track_start(self, data, other):
         LOG.debug('VLC playback start')
@@ -74,14 +65,24 @@ class OVOSVlcService(OCPAudioPlayerBackend):
         if self._track_start_callback:
             self._track_start_callback(None)
 
-    def supported_uris(self):
+    ############
+    # mandatory abstract methods
+    @property
+    def playback_time(self):
+        """ in milliseconds """
+        return self._playback_time
+
+    def supported_uris(self) -> List[str]:
+        """List of supported uri types.
+
+        Returns:
+            list: Supported uri's
+        """
         return ['file', 'http', 'https']
 
-    # audio service
     def play(self, repeat=False):
         """ Play playlist using vlc. """
         LOG.debug('VLCService Play')
-        self.ocp_start()  # emit ocp state events
         track = self.instance.media_new(self._now_playing)
         self.player.set_media(track)
         self.player.play()
@@ -91,19 +92,22 @@ class OVOSVlcService(OCPAudioPlayerBackend):
         LOG.info('VLCService Stop')
         if self.player.is_playing():
             self.player.stop()
-            self.ocp_stop()  # emit ocp state events
             return True
         return False
 
     def pause(self):
         """ Pause vlc playback. """
         self.player.set_pause(1)
-        self.ocp_pause()  # emit ocp state events
 
     def resume(self):
         """ Resume paused playback. """
         self.player.set_pause(0)
-        self.ocp_resume()  # emit ocp state events
+
+    def lower_volume(self):
+        self.player.audio_set_volume(self.low_volume)
+
+    def restore_volume(self):
+        self.player.audio_set_volume(100)
 
     def track_info(self):
         """ Extract info of current track. """
@@ -171,3 +175,11 @@ def load_service(base_config, bus):
                 backends[b].get('active', False)]
     instances = [OVOSVlcService(s[1], bus, s[0]) for s in services]
     return instances
+
+
+VLCAudioPluginConfig = {
+    "vlc": {
+        "type": "ovos_vlc",
+        "active": True
+    }
+}
