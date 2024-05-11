@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/HEAD)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a5...HEAD)
+
+**Merged pull requests:**
+
+- refactor/legacy\_audio [\#7](https://github.com/OpenVoiceOS/ovos-plugin-vlc/pull/7) ([JarbasAl](https://github.com/JarbasAl))
+
+## [V0.0.2a5](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/V0.0.2a5) (2024-04-10)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.1.0a3...V0.0.2a5)
+
 ## [V0.1.0a3](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/V0.1.0a3) (2024-01-11)
 
 [Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.1.0a2...V0.1.0a3)
