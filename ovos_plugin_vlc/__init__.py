@@ -77,7 +77,6 @@ class OVOSVlcService(AudioBackend):
     def play(self, repeat=False):
         """ Play playlist using vlc. """
         LOG.debug('VLCService Play')
-        self.ocp_start()  # emit ocp state events
         track = self.instance.media_new(self._now_playing)
         self.player.set_media(track)
         self.player.play()
@@ -87,19 +86,16 @@ class OVOSVlcService(AudioBackend):
         LOG.info('VLCService Stop')
         if self.player.is_playing():
             self.player.stop()
-            self.ocp_stop()  # emit ocp state events
             return True
         return False
 
     def pause(self):
         """ Pause vlc playback. """
         self.player.set_pause(1)
-        self.ocp_pause()  # emit ocp state events
 
     def resume(self):
         """ Resume paused playback. """
         self.player.set_pause(0)
-        self.ocp_resume()  # emit ocp state events
 
     def lower_volume(self):
         self.player.audio_set_volume(self.low_volume)
