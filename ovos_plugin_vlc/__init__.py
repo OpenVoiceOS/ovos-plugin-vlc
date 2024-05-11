@@ -2,6 +2,7 @@ import time
 from typing import List
 
 import vlc
+from ovos_bus_client.message import Message
 from ovos_plugin_manager.templates.audio import AudioBackend
 from ovos_utils.log import LOG
 
@@ -46,7 +47,12 @@ class OVOSVlcService(AudioBackend):
             # the gui seems to lag a lot when sending messages too often,
             # gui expected to keep an internal fake progress bar and sync periodically
             self._last_sync = time.time()
-            self.ocp_sync_playback(self._playback_time)
+            try:
+                self.ocp_sync_playback(self._playback_time)
+            except:  # too old OPM version
+                self.bus.emit(Message("ovos.common_play.playback_time",
+                                      {"position": self._playback_time,
+                                       "length": self.get_track_length()}))
 
     def track_start(self, data, other):
         LOG.debug('VLC playback start')
