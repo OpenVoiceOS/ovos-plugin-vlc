@@ -27,10 +27,9 @@ class OVOSVlcService(AudioBackend):
         self.config = config
         self.bus = bus
         self.name = name
-        self.normal_volume = None
+        self.normal_volume = 100
         self.low_volume = self.config.get('low_volume', 30)
         self._playback_time = 0
-        self.player.audio_set_volume(100)
         self._last_sync = 0
 
     ###################
@@ -104,10 +103,11 @@ class OVOSVlcService(AudioBackend):
         self.player.set_pause(0)
 
     def lower_volume(self):
+        self.normal_volume = self.player.audio_get_volume()  # remember volume
         self.player.audio_set_volume(self.low_volume)
 
     def restore_volume(self):
-        self.player.audio_set_volume(100)
+        self.player.audio_set_volume(self.normal_volume)
 
     def track_info(self):
         """ Extract info of current track. """
