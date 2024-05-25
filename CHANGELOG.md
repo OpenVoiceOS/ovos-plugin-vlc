@@ -1,8 +1,8 @@
 # Changelog
 
-## [Unreleased](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/HEAD)
+## [V0.0.2a7](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/V0.0.2a7) (2024-05-20)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a6...HEAD)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a6...V0.0.2a7)
 
 **Fixed bugs:**
 
