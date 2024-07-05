@@ -29,10 +29,11 @@ class OVOSVlcService(AudioBackend):
         self.config = config
         self.bus = bus
         self.name = name
-        self.normal_volume = 100
+        self.normal_volume = self.config.get('initial_volume', 100)
         self.low_volume = self.config.get('low_volume', 30)
         self._playback_time = 0
         self._last_sync = 0
+        self.player.audio_set_volume(self.normal_volume)
 
     ###################
     # vlc internals
@@ -105,10 +106,16 @@ class OVOSVlcService(AudioBackend):
         self.player.set_pause(0)
 
     def lower_volume(self):
-        self.normal_volume = self.player.audio_get_volume()  # remember volume
+        current = self.player.audio_get_volume()
+        if current <= self.low_volume:
+            LOG.info(f"VLC not ducking, volume already below {self.low_volume}")
+            return
+        LOG.info(f"vlc is volume currently at {current}, lowering to {self.low_volume}")
+        self.normal_volume = current  # remember volume
         self.player.audio_set_volume(self.low_volume)
 
     def restore_volume(self):
+        LOG.info(f"restoring vlc volume to {self.normal_volume}")
         self.player.audio_set_volume(self.normal_volume)
 
     def track_info(self):
