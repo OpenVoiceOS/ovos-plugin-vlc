@@ -9,12 +9,22 @@ from ovos_utils.log import LOG
 
 class OVOSVlcService(AudioBackend):
     def __init__(self, config, bus=None, name='ovos_vlc'):
-        super(OVOSVlcService, self).__init__(config, bus)
-        self.instance = vlc.Instance("--no-video")
+        super(OVOSVlcService, self).__init__(config, bus, name)
+        self.config = config
+        self.bus = bus
+        self.normal_volume = self.config.get('initial_volume', 100)
+        self.low_volume = self.config.get('low_volume', 50)
+        self._playback_time = 0
+        self._last_sync = 0
+        self.instance = None
+        self.player = None
+        self.vlc_events = None
+        self.init_vlc()
 
+    def init_vlc(self):
+        self.instance = vlc.Instance("--no-video")
         self.player = self.instance.media_player_new()
         self.vlc_events = self.player.event_manager()
-
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerPlaying,
                                      self.track_start, 1)
         self.vlc_events.event_attach(vlc.EventType.MediaPlayerTimeChanged,
@@ -25,14 +35,6 @@ class OVOSVlcService(AudioBackend):
                                      self.handle_vlc_error, None)
         self.vlc_events.event_attach(vlc.EventType.VlmMediaInstanceStatusError,
                                      self.handle_vlc_error, None)
-
-        self.config = config
-        self.bus = bus
-        self.name = name
-        self.normal_volume = self.config.get('initial_volume', 100)
-        self.low_volume = self.config.get('low_volume', 30)
-        self._playback_time = 0
-        self._last_sync = 0
         self.player.audio_set_volume(self.normal_volume)
 
     ###################
@@ -85,6 +87,11 @@ class OVOSVlcService(AudioBackend):
     def play(self, repeat=False):
         """ Play playlist using vlc. """
         LOG.debug('VLCService Play')
+        # HACK - ensure volume is restored,
+        # if stop was called the audio would remain ducked at low volume
+        # this is not a proper fix, but it is a good enough remedy
+        if self.instance is None or self.player is None:
+            self.init_vlc()
         track = self.instance.media_new(self._now_playing)
         self.player.set_media(track)
         self.player.play()
@@ -92,53 +99,79 @@ class OVOSVlcService(AudioBackend):
     def stop(self):
         """ Stop vlc playback. """
         LOG.info('VLCService Stop')
-        if self.player.is_playing():
+        if self.player is not None and self.player.is_playing():
             self.player.stop()
+            # HACK - when vlc is stopped it doesnt react properly to commands
+            # eg, restore_volume fails. drop the previous reference
+            # a new player will be inited on playback request
+            self.instance = None
+            self.player = None
+            self.vlc_events = None
             return True
         return False
 
     def pause(self):
         """ Pause vlc playback. """
-        self.player.set_pause(1)
+        if self.player is not None:
+            self.player.set_pause(1)
 
     def resume(self):
         """ Resume paused playback. """
-        self.player.set_pause(0)
+        if self.player is not None:
+            self.player.set_pause(0)
 
     def lower_volume(self):
-        current = self.player.audio_get_volume()
-        if current <= self.low_volume:
-            LOG.info(f"VLC not ducking, volume already below {self.low_volume}")
-            return
-        LOG.info(f"vlc is volume currently at {current}, lowering to {self.low_volume}")
-        self.normal_volume = current  # remember volume
-        self.player.audio_set_volume(self.low_volume)
+        if self.player is not None:
+            current = self.player.audio_get_volume()
+            if current <= self.low_volume:
+                LOG.info(f"VLC not ducking, volume already below {self.low_volume}")
+                return
+            LOG.info(f"vlc is volume currently at {current}, lowering to {self.low_volume}")
+            self.normal_volume = current  # remember volume
+            self.player.audio_set_volume(self.low_volume)
 
     def restore_volume(self):
-        LOG.info(f"restoring vlc volume to {self.normal_volume}")
-        self.player.audio_set_volume(self.normal_volume)
+        if self.player is not None:
+            current = self.player.audio_get_volume()
+            if current == self.normal_volume:
+                LOG.debug("VLC already at normal volume, ignoring restore_volume request")
+                return
+            LOG.info(f"restoring vlc volume to {self.normal_volume}")
+            for i in range(3):
+                self.player.audio_set_volume(self.normal_volume)
+                time.sleep(0.2)
+                current = self.player.audio_get_volume()
+                if current != self.normal_volume:
+                    LOG.error("VLC failed to restore volume!")
+                else:
+                    break
 
     def track_info(self):
         """ Extract info of current track. """
         ret = {}
-        t = self.player.get_media()
-        if t:
-            ret['album'] = t.get_meta(vlc.Meta.Album)
-            ret['artist'] = t.get_meta(vlc.Meta.Artist)
-            ret['title'] = t.get_meta(vlc.Meta.Title)
+        if self.player is not None:
+            t = self.player.get_media()
+            if t:
+                ret['album'] = t.get_meta(vlc.Meta.Album)
+                ret['artist'] = t.get_meta(vlc.Meta.Artist)
+                ret['title'] = t.get_meta(vlc.Meta.Title)
         return ret
 
     def get_track_length(self):
         """
         getting the duration of the audio in milliseconds
         """
-        return self.player.get_length()
+        if self.player is not None:
+            return self.player.get_length()
+        return 0
 
     def get_track_position(self):
         """
         get current position in milliseconds
         """
-        return self.player.get_time()
+        if self.player is not None:
+            return self.player.get_time()
+        return 0
 
     def set_track_position(self, milliseconds):
         """
@@ -147,7 +180,8 @@ class OVOSVlcService(AudioBackend):
           Args:
                 milliseconds (int): number of milliseconds of final position
         """
-        self.player.set_time(int(milliseconds))
+        if self.player is not None:
+            self.player.set_time(int(milliseconds))
 
     def seek_forward(self, seconds=1):
         """
@@ -156,12 +190,13 @@ class OVOSVlcService(AudioBackend):
           Args:
                 seconds (int): number of seconds to seek, if negative rewind
         """
-        seconds = seconds * 1000
-        new_time = self.player.get_time() + seconds
-        duration = self.player.get_length()
-        if new_time > duration:
-            new_time = duration
-        self.player.set_time(new_time)
+        if self.player is not None:
+            seconds = seconds * 1000
+            new_time = self.player.get_time() + seconds
+            duration = self.player.get_length()
+            if new_time > duration:
+                new_time = duration
+            self.player.set_time(new_time)
 
     def seek_backward(self, seconds=1):
         """
@@ -170,11 +205,12 @@ class OVOSVlcService(AudioBackend):
           Args:
                 seconds (int): number of seconds to seek, if negative rewind
         """
-        seconds = seconds * 1000
-        new_time = self.player.get_time() - seconds
-        if new_time < 0:
-            new_time = 0
-        self.player.set_time(new_time)
+        if self.player is not None:
+            seconds = seconds * 1000
+            new_time = self.player.get_time() - seconds
+            if new_time < 0:
+                new_time = 0
+            self.player.set_time(new_time)
 
 
 def load_service(base_config, bus):
