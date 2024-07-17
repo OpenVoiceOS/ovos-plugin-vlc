@@ -2,7 +2,15 @@
 
 ## [Unreleased](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/HEAD)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a9...HEAD)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a10...HEAD)
+
+**Fixed bugs:**
+
+- After ducking, volume doesn't return to normal [\#9](https://github.com/OpenVoiceOS/ovos-plugin-vlc/issues/9)
+
+## [V0.0.2a10](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/V0.0.2a10) (2024-07-17)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a9...V0.0.2a10)
 
 **Fixed bugs:**
 
