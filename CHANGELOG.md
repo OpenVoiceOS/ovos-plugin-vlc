@@ -2,7 +2,15 @@
 
 ## [Unreleased](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/HEAD)
 
-[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a8...HEAD)
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a9...HEAD)
+
+**Fixed bugs:**
+
+- fix/ducking [\#11](https://github.com/OpenVoiceOS/ovos-plugin-vlc/pull/11) ([JarbasAl](https://github.com/JarbasAl))
+
+## [V0.0.2a9](https://github.com/OpenVoiceOS/ovos-plugin-vlc/tree/V0.0.2a9) (2024-07-05)
+
+[Full Changelog](https://github.com/OpenVoiceOS/ovos-plugin-vlc/compare/V0.0.2a8...V0.0.2a9)
 
 **Fixed bugs:**
 
